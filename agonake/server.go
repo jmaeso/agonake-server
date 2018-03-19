@@ -22,7 +22,6 @@ func NewServer(port string) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Could not start udp server: %s", err)
 	}
-	defer conn.Close()
 
 	agonesSDK, err := agones.NewSDK()
 	if err != nil {
@@ -74,11 +73,13 @@ func (s *Server) Loop() {
 		switch txt {
 		// shuts down the gameserver
 		case "EXIT":
-			log.Printf("Received EXIT command. Exiting.")
+			if err := s.close(); err != nil {
+				log.Printf("Could not close connection. Err: %s", err)
+			}
 			// This tells Agones to shutdown this Game Server
 			err := s.agonesSDK.Shutdown()
 			if err != nil {
-				log.Printf("Could not shutdown")
+				log.Printf("Could not shutdown Agones. Err: %s", err)
 			}
 			os.Exit(0)
 			break
@@ -95,4 +96,8 @@ func (s *Server) Loop() {
 			log.Fatalf("Could not write to udp stream: %v", err)
 		}
 	}
+}
+
+func (s *Server) close() error {
+	return s.conn.Close()
 }

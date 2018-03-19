@@ -1,0 +1,12 @@
+apiVersion: "stable.agones.dev/v1alpha1"
+kind: GameServer
+metadata:
+  name: "agonake"
+spec:
+  portPolicy: "dynamic"
+  containerPort: 7654
+  template:
+    spec:
+      containers:
+      - name: agonake-server
+        image: jmaeso/agonake-server:latest
