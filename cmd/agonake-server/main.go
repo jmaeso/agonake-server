@@ -12,10 +12,18 @@ func main() {
 	port := flag.String("port", "7654", "The port to listen to udp traffic on")
 	flag.Parse()
 
+	playersStore := &agonake.PlayersStore{}
+
+	gameManager := &agonake.GameManager{
+		PlayersStore: playersStore,
+	}
+
 	server, err := agonake.NewServer(*port)
 	if err != nil {
 		log.Fatalf("Could not start server. Err: %s", err)
 	}
+
+	server.SetManager(gameManager)
 
 	var quit = false
 	buffer := make([]byte, 1024)
