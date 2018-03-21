@@ -10,3 +10,4 @@ spec:
       containers:
       - name: agonake-server
         image: jmaeso/agonake-server:latest
+        imagePullPolicy: Always

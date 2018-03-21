@@ -84,12 +84,16 @@ func (s *Server) ReceiveAndProcessMsgs(b []byte) bool {
 	}
 
 	txt := strings.Fields(strings.TrimSpace(string(b[:n])))
-	log.Printf("Received packet from %s: %s", sender.String(), txt)
+	if len(txt) < 1 {
+		return false
+	}
 
 	return s.processMsg(txt, sender)
 }
 
 func (s *Server) processMsg(msg []string, sender net.Addr) bool {
+	log.Printf("Processing message from %s: %s", sender.String(), msg)
+
 	switch msg[0] {
 	case string(pt.Exit):
 		log.Println("Exiting")
@@ -104,7 +108,7 @@ func (s *Server) processMsg(msg []string, sender net.Addr) bool {
 		ack := "ACK: " + string(strings.Join(msg[:], " ")) + "\n"
 		var err error
 		if _, err = s.conn.WriteTo([]byte(ack), sender); err != nil {
-			log.Fatalf("Could not write to udp stream: %v", err)
+			log.Fatalf("Could not write to udp stream: %s", err)
 		}
 	}
 
