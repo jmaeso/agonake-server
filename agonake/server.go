@@ -12,6 +12,7 @@ import (
 )
 
 type Server struct {
+	gameManager  *GameManager
 	agonesSDK    *agones.SDK
 	conn         net.PacketConn
 	healthActive bool
@@ -55,6 +56,10 @@ func NewServer(port string) (*Server, error) {
 	return server, nil
 }
 
+func (s *Server) SetManager(gm *GameManager) {
+	s.gameManager = gm
+}
+
 func (s *Server) checkingConnectivity() {
 	tick := time.Tick(2 * time.Second)
 	s.healthActive = true
@@ -93,26 +98,88 @@ func (s *Server) ReceiveAndProcessMsgs(b []byte) bool {
 
 func (s *Server) processMsg(msg []string, sender net.Addr) bool {
 	log.Printf("Processing message from %s: %s", sender.String(), msg)
+	var (
+		response string
+		exit     bool
+	)
 
 	switch msg[0] {
 	case string(pt.Exit):
 		log.Println("Exiting")
-		return true
+		response = string(pt.Msg) + ": bye\n"
+		exit = true
 
 	case string(pt.Unhealthy):
 		if s.healthActive {
 			close(s.stop)
 		}
 
+	case string(pt.Signup):
+		player, err := s.gameManager.RegisterPlayer(msg, sender)
+		if err != nil {
+			if err == ErrGameFull {
+				if err = s.send(pt.Full+"\n", sender); err != nil {
+					log.Fatal(err)
+				}
+				break
+			}
+			log.Fatalf("Could not register user. Err %s", err)
+			break
+		}
+
+		if err = s.send(pt.Hello+" "+player.Nick+"\n", sender); err != nil {
+			log.Fatal(err)
+		}
+
+		if err = s.broadcast(s.gameManager.GameStateMessage()); err != nil {
+			log.Fatal(err)
+		}
+
+	case string(pt.Disconnect):
+		lastOne := s.gameManager.RemovePlayer(sender)
+
+		if err := s.send(pt.Bye+"\n", sender); err != nil {
+			log.Fatal(err)
+		}
+
+		if lastOne == true {
+			log.Println("Las player left. Shutting down.")
+			return true
+		}
+
+		if err := s.broadcast(s.gameManager.GameStateMessage()); err != nil {
+			log.Fatal(err)
+		}
+
 	default: //echo
-		ack := "ACK: " + string(strings.Join(msg[:], " ")) + "\n"
-		var err error
-		if _, err = s.conn.WriteTo([]byte(ack), sender); err != nil {
-			log.Fatalf("Could not write to udp stream: %s", err)
+		response = "ACK: " + string(strings.Join(msg[:], " ")) + "\n"
+	}
+
+	if len(response) > 0 {
+		s.broadcast(response)
+	}
+
+	return exit
+}
+
+func (s *Server) send(message string, receiver net.Addr) error {
+	var err error
+	if _, err = s.conn.WriteTo([]byte(message), receiver); err != nil {
+		return fmt.Errorf("Could not send message: %s to player: %s. Err: %s", message, receiver.String(), err)
+	}
+
+	return nil
+}
+
+func (s *Server) broadcast(message string) error {
+	var err error
+	for _, p := range s.gameManager.PlayersStore.GetAllPlayers() {
+		if err = s.send(message, p.Address); err != nil {
+			return err
 		}
 	}
 
-	return false
+	return nil
 }
 
 // Stop closes the udp connection and the agones SDK.
