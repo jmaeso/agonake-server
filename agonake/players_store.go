@@ -3,7 +3,6 @@ package agonake
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"time"
@@ -53,17 +52,16 @@ func (ps *PlayersStore) SetNick(proposal string) string {
 
 	if len(ps.Players) != 0 {
 		for !valid {
+			oldSuffix := suffix
 			for _, p := range ps.Players {
-				oldSuffix := suffix
 				if p.Nick == nick {
 					nick = fmt.Sprintf("%s%d", proposal, suffix)
-					log.Printf("So I'm proposing %s", nick)
 					suffix++
 					break
 				}
-				if oldSuffix == suffix {
-					valid = true
-				}
+			}
+			if oldSuffix == suffix {
+				valid = true
 			}
 		}
 	}
