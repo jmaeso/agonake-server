@@ -18,12 +18,10 @@ func main() {
 		PlayersStore: playersStore,
 	}
 
-	server, err := agonake.NewServer(*port)
+	server, err := agonake.NewServer(*port, gameManager)
 	if err != nil {
 		log.Fatalf("Could not start server. Err: %s", err)
 	}
-
-	server.SetManager(gameManager)
 
 	var quit = false
 	buffer := make([]byte, 1024)

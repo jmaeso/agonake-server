@@ -27,7 +27,7 @@ type Server struct {
 // mark agones as ready for incomming connections.
 //
 // Returns an error if something could not be initialized.
-func NewServer(port string) (*Server, error) {
+func NewServer(port string, gameManager *GameManager) (*Server, error) {
 	conn, err := net.ListenPacket("udp", ":"+port)
 	if err != nil {
 		return nil, fmt.Errorf("Could not start udp server: %s", err)
@@ -39,6 +39,7 @@ func NewServer(port string) (*Server, error) {
 	}
 
 	server := &Server{
+		gameManager:  gameManager,
 		agonesSDK:    agonesSDK,
 		conn:         conn,
 		healthActive: true,
@@ -54,10 +55,6 @@ func NewServer(port string) (*Server, error) {
 
 	log.Println("Server started")
 	return server, nil
-}
-
-func (s *Server) SetManager(gm *GameManager) {
-	s.gameManager = gm
 }
 
 func (s *Server) checkingConnectivity() {
